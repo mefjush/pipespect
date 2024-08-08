@@ -49,22 +49,28 @@ i=0
 IFS='|' read -ra commands <<< "$chain"
 for dirty_cmd in "${commands[@]}"; do
   cmd=$(sed 's/^[[:space:]]*//' <<< "$dirty_cmd")
-  echo -e "\n> $cmd" > "$tempdir/$i"
+  output="$tempdir/$i"
+  echo -e "\n> $cmd" > "$output"
   if [ -z "$debug_command" ]; then
     debug_command="$cmd"
   else
-    debug_command="$debug_command | tee -a \"$tempdir/$((i-1))\" | $cmd"
+    debug_command="$debug_command | tee -a \"$prev_output\" | $cmd"
   fi
+  prev_output="$output"
   i=$((i+1))
 done
+
+output="$tempdir/$i"
+debug_command="$debug_command >> \"$output\""
 
 if $DEBUG; then
   echo "Evaluating: $debug_command"
 fi
 
-eval "$debug_command >> \"$tempdir/$i\""
+eval "$debug_command"
 find "$tempdir" -type f | sort | tail -n "+$((SKIP+1))" | xargs cat
 
 if ! $DEBUG; then
   rm -rf "$tempdir"
 fi
+
