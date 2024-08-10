@@ -3,7 +3,7 @@
 set -e
 
 function usage() {
-  echo "Usage: $0 [-d|--debug] [-s|--skip number] 'chain | of | piped | commands'"
+  >&2 echo "Usage: $0 [-d|--debug] [-s|--skip number] 'chain | of | piped | commands'"
   exit 1
 }
 
@@ -23,8 +23,8 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
-    -*|--*)
-      echo "Unknown option $1"
+    -*)
+      >&2 echo "Unknown option $1"
       usage
       ;;
     *)
@@ -40,36 +40,81 @@ if [ "$#" -ne 1 ]; then
   usage  
 fi
 
-chain="$1"
-debug_command=""
-
 tempdir=$(mktemp -d)
-i=0
 
-IFS='|' read -ra commands <<< "$chain"
-for dirty_cmd in "${commands[@]}"; do
-  cmd=$(sed 's/^[[:space:]]*//' <<< "$dirty_cmd")
-  output="$tempdir/$i"
-  echo -e "\n> $cmd" > "$output"
-  if [ -z "$debug_command" ]; then
-    debug_command="$cmd"
+# tokenize the chain
+string="$1"
+results=()
+result=''
+inside=''
+for (( i=0 ; i<${#string} ; i++ )) ; do
+  char=${string:i:1}
+  if [[ $inside ]] ; then
+    if [[ $char == \\ ]] ; then
+      if [[ $inside=='"' && ${string:i+1:1} == '"' ]] ; then
+        let i++
+        char=$inside
+      fi
+    elif [[ $char == $inside ]] ; then
+      inside=''
+    fi
   else
-    debug_command="$debug_command | tee -a \"$prev_output\" | $cmd"
+    if [[ $char == ["'"'"'] ]] ; then
+      inside=$char
+    elif [[ $char == ' ' ]] ; then
+      char=''
+      results+=("$result")
+      result=''
+    fi
   fi
-  prev_output="$output"
+  result+=$char
+done
+if [[ $inside ]] ; then
+  >&2 echo Error parsing "$result"
+  exit 1
+else
+  results+=("$result")
+fi
+
+# split the chain of piped commands
+commands=()
+i=0
+for token in "${results[@]}"; do
+  if [ "$token" == "|" ]; then
+    i=$((i+1))
+    commands+=("$cmd")
+    unset cmd
+  else
+    cmd="${cmd:+$cmd }$token"
+  fi
+done
+commands+=("$cmd")
+
+# prepare a modified command that intercepts the intermediate outputs
+i=0
+for cmd in "${commands[@]}"; do
+  output="$tempdir/$i"
+  debug_command="${debug_command:+$debug_command | }$cmd | tee -a \"$output\""
   i=$((i+1))
 done
 
-output="$tempdir/$i"
-debug_command="$debug_command >> \"$output\""
-
 if $DEBUG; then
-  echo "Evaluating: $debug_command"
+  >&2 echo "Evaluating: $debug_command"
 fi
-
 eval "$debug_command"
-find "$tempdir" -type f | sort | tail -n "+$((SKIP+1))" | xargs cat
 
+# annotate the intercepted outputs
+i=0
+for cmd in "${commands[@]}"; do
+  output="$tempdir/$i"
+  echo -e "\n↑ $cmd\n" >> "$output"
+  i=$((i+1))
+done
+
+# print the inspected outputs
+find "$tempdir" -type f | sort -r | head -n "-$((SKIP))" | xargs cat | >&2 tail +2
+
+# cleanup
 if ! $DEBUG; then
   rm -rf "$tempdir"
 fi

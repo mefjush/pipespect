@@ -9,14 +9,18 @@ Running this:
 ```
 Will output:
 ```
-> echo "foo bar" 
-foo bar
+foo-baz
 
-> sed "s/bar/baz/g" 
+↑ tr " " "-"
+
 foo baz
 
-> tr " " "-"
-foo-baz
+↑ sed "s/bar/baz/g"
+
+foo bar
+
+↑ echo "foo bar"
+
 ```
 
 ## Debug a chain of piped commands that check how many times `GPL` is referred to in the `LICENCE` of this project
@@ -26,15 +30,10 @@ Running this:
 ```
 Will output:
 ```
-> ls 
-LICENSE
-pipespect.sh
-README.md
+7
 
-> grep "LIC" 
-LICENSE
+↑ wc -l
 
-> xargs grep GPL 
   Developers that use the GNU GPL protect your rights with two steps:
   For the developers' and authors' protection, the GPL clearly explains
 authors' sake, the GPL requires that modified versions be marked as
@@ -43,6 +42,17 @@ of the GPL, as needed to protect the freedom of users.
 make it effectively proprietary.  To prevent this, the GPL assures that
 For more information on this, and how to apply and follow the GNU GPL, see
 
-> wc -l
-7
+↑ xargs grep GPL
+
+LICENSE
+
+↑ grep "LIC"
+
+LICENSE
+pipespect.sh
+README.md
+test
+
+↑ ls
+
 ```
