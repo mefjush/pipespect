@@ -7,6 +7,10 @@ function usage() {
   exit 1
 }
 
+function trim() {
+  sed 's/^[ \t]*//;s/[ \t]*$//'
+}
+
 DEBUG=false
 SKIP=0
 
@@ -42,9 +46,9 @@ fi
 
 tempdir=$(mktemp -d)
 
-# tokenize the chain
+# spit the chain of pipes
 string="$1"
-results=()
+commands=()
 result=''
 inside=''
 for (( i=0 ; i<${#string} ; i++ )) ; do
@@ -61,9 +65,9 @@ for (( i=0 ; i<${#string} ; i++ )) ; do
   else
     if [[ $char == ["'"'"'] ]] ; then
       inside=$char
-    elif [[ $char == ' ' ]] ; then
+    elif [[ $char == '|' ]] ; then
       char=''
-      results+=("$result")
+      commands+=("$(echo "$result" | trim)")
       result=''
     fi
   fi
@@ -72,23 +76,8 @@ done
 if [[ $inside ]] ; then
   >&2 echo Error parsing "$result"
   exit 1
-else
-  results+=("$result")
 fi
-
-# split the chain of piped commands
-commands=()
-i=0
-for token in "${results[@]}"; do
-  if [ "$token" == "|" ]; then
-    i=$((i+1))
-    commands+=("$cmd")
-    unset cmd
-  else
-    cmd="${cmd:+$cmd }$token"
-  fi
-done
-commands+=("$cmd")
+commands+=("$(echo "$result" | trim)")
 
 # prepare a modified command that intercepts the intermediate outputs
 i=0
