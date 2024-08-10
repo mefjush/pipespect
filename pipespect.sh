@@ -3,7 +3,7 @@
 set -e
 
 function usage() {
-  >&2 echo "Usage: $0 [-d|--debug] [-s|--skip number] 'chain | of | piped | commands'"
+  >&2 echo "Usage: $0 [-d|--debug] [-s|--skip number] [-q|--quiet] 'chain | of | piped | commands'"
   exit 1
 }
 
@@ -12,6 +12,8 @@ function trim() {
 }
 
 DEBUG=false
+PRINT_OUTPUT=true
+PRINT_HEADER=true
 SKIP=0
 
 POSITIONAL_ARGS=()
@@ -27,6 +29,11 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    -q|--quiet)
+      PRINT_OUTPUT=false
+      PRINT_HEADER=false
+      shift # past argument
+      ;;
     -*)
       >&2 echo "Unknown option $1"
       usage
@@ -40,14 +47,18 @@ done
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
-if [ "$#" -ne 1 ]; then
-  usage  
+if [ "$#" -gt 1 ]; then
+  usage
+fi
+if [ "$#" -eq 1 ]; then
+  string="$1"
+else
+  string=$(cat)
 fi
 
 tempdir=$(mktemp -d)
 
 # spit the chain of pipes
-string="$1"
 commands=()
 result=''
 inside=''
@@ -83,7 +94,7 @@ commands+=("$(echo "$result" | trim)")
 i=0
 for cmd in "${commands[@]}"; do
   debug_command="${debug_command:+$debug_command | }$cmd"
-  if [ "$((i+1))" -lt "${#commands[@]}" ]; then
+  if [[ "$PRINT_OUTPUT" == true || "$((i+1))" -lt "${#commands[@]}" ]]; then
     output="$tempdir/$i"
     debug_command="$debug_command | tee -a \"$output\""
   fi
@@ -99,9 +110,16 @@ eval "$debug_command"
 i=0
 for cmd in "${commands[@]}"; do
   output="$tempdir/$i"
-  echo -e "\n↑ $cmd\n" >> "$output"
+  echo >> "$output"
+  echo "↑ $cmd" >> "$output"
+  echo >> "$output"
   i=$((i+1))
 done
+
+if $PRINT_HEADER; then
+  >&2 echo "== Pipespection =="
+  >&2 echo "> $string"
+fi
 
 # print the inspected outputs
 find "$tempdir" -type f | sort -r | head -n "-$((SKIP))" | >&2 xargs cat
