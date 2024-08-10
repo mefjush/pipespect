@@ -94,7 +94,10 @@ commands+=("$cmd")
 i=0
 for cmd in "${commands[@]}"; do
   output="$tempdir/$i"
-  debug_command="${debug_command:+$debug_command | }$cmd | tee -a \"$output\""
+  debug_command="${debug_command:+$debug_command | }$cmd"
+  if [ "$((i+1))" -lt "${#commands[@]}" ]; then
+    debug_command="$debug_command | tee -a \"$output\""
+  fi
   i=$((i+1))
 done
 
@@ -112,10 +115,9 @@ for cmd in "${commands[@]}"; do
 done
 
 # print the inspected outputs
-find "$tempdir" -type f | sort -r | head -n "-$((SKIP))" | xargs cat | >&2 tail +2
+find "$tempdir" -type f | sort -r | head -n "-$((SKIP))" | >&2 xargs cat
 
 # cleanup
 if ! $DEBUG; then
   rm -rf "$tempdir"
 fi
-
