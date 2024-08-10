@@ -93,9 +93,9 @@ commands+=("$cmd")
 # prepare a modified command that intercepts the intermediate outputs
 i=0
 for cmd in "${commands[@]}"; do
-  output="$tempdir/$i"
   debug_command="${debug_command:+$debug_command | }$cmd"
   if [ "$((i+1))" -lt "${#commands[@]}" ]; then
+    output="$tempdir/$i"
     debug_command="$debug_command | tee -a \"$output\""
   fi
   i=$((i+1))
