@@ -23,14 +23,14 @@ function parse_commands() {
   inside=''
   prev=''
   while IFS= read -r -n1 char; do
-    if [[ $inside ]] ; then
-      if [[ $char == "$inside" ]] && [[ $char != '"' || $prev != \\ ]] ; then
+    if [[ $inside ]]; then
+      if [[ $char == "$inside" ]] && [[ $char != '"' || $prev != \\ ]]; then
         inside=''
       fi
     else
-      if [[ $char == "'" || $char == '"' ]] ; then
+      if [[ $char == "'" || $char == '"' ]]; then
         inside=$char
-      elif [[ $char == '|' ]] ; then
+      elif [[ $char == '|' ]]; then
         commands+=("$(echo "$result" | trim)")
         char=''
         result=''
@@ -40,7 +40,7 @@ function parse_commands() {
     prev=$char
   done
 
-  if [[ $inside ]] ; then
+  if [[ $inside ]]; then
     >&2 echo Error parsing "$result"
     exit 1
   fi
@@ -127,7 +127,7 @@ done
 
 (
   if [[ -n "$OUTPUT" ]]; then
-    exec 2> "$OUTPUT";
+    exec 2> "$OUTPUT"
   fi
 
   if $PRINT_HEADER; then
