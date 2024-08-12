@@ -5,7 +5,7 @@ Inspect a chain of piped bash commands. Useful for debugging long chains of pipe
 ## Debug if chain of pipes correctly converts `foo bar` into `foo-baz`
 Running this:
 ```
-./pipespect.sh -q 'echo "foo bar" | sed "s/bar/baz/g" | tr " " "-"'
+./pipespect.sh 'echo "foo bar" | sed "s/bar/baz/g" | tr " " "-"'
 ```
 Will output:
 ```
@@ -26,7 +26,7 @@ foo bar
 ## Debug a chain of piped commands that check how many times `GPL` is referred to in the `LICENCE` of this project
 Running this:
 ```
-./pipespect.sh -q 'ls | grep "LIC" | xargs grep GPL | wc -l'
+./pipespect.sh 'ls | grep "LIC" | xargs grep GPL | wc -l'
 ```
 Will output:
 ```
@@ -70,7 +70,7 @@ counts=$(echo "foo bar 124 ff1 foo foo1 foo bar4 baz" \
 ```
 can be easily pipe-spected by changing it to:
 ```
-counts=$(pipespect << EOM
+counts=$(pipespect --verbose << EOM
 echo "foo bar 124 ff1 foo foo1 foo bar4 baz" \
   | tr ' ' '\n' \
   | sed 's/bar/baz/g' \

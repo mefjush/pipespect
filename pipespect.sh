@@ -3,7 +3,7 @@
 set -e
 
 function usage() {
-  >&2 echo "Usage: $0 [-d|--debug] [-s|--skip number] [-q|--quiet] 'chain | of | piped | commands'"
+  >&2 echo "Usage: $0 [-d|--debug] [-s|--skip number] [-v|--verbose] 'chain | of | piped | commands'"
   exit 1
 }
 
@@ -11,9 +11,45 @@ function trim() {
   sed 's/^[ \t]*//;s/[ \t]*$//'
 }
 
+function join_by {
+  local d=${1-} f=${2-}
+  if shift 2; then
+    printf %s "$f" "${@/#/$d}"
+  fi
+}
+
+function parse_commands() {
+  result=''
+  inside=''
+  prev=''
+  while IFS= read -r -n1 char; do
+    if [[ $inside ]] ; then
+      if [[ $char == "$inside" ]] && [[ $char != '"' || $prev != \\ ]] ; then
+        inside=''
+      fi
+    else
+      if [[ $char == "'" || $char == '"' ]] ; then
+        inside=$char
+      elif [[ $char == '|' ]] ; then
+        commands+=("$(echo "$result" | trim)")
+        char=''
+        result=''
+      fi
+    fi
+    result+=$char
+    prev=$char
+  done
+
+  if [[ $inside ]] ; then
+    >&2 echo Error parsing "$result"
+    exit 1
+  fi
+  commands+=("$(echo "$result" | trim)")
+}
+
 DEBUG=false
-PRINT_OUTPUT=true
-PRINT_HEADER=true
+PRINT_OUTPUT=false
+PRINT_HEADER=false
 SKIP=0
 
 POSITIONAL_ARGS=()
@@ -29,9 +65,9 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
-    -q|--quiet)
-      PRINT_OUTPUT=false
-      PRINT_HEADER=false
+    -v|--verbose)
+      PRINT_OUTPUT=true
+      PRINT_HEADER=true
       shift # past argument
       ;;
     -*)
@@ -50,45 +86,15 @@ set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 if [ "$#" -gt 1 ]; then
   usage
 fi
-if [ "$#" -eq 1 ]; then
-  string="$1"
-else
-  string=$(cat)
-fi
 
 tempdir=$(mktemp -d)
 
-# spit the chain of pipes
 commands=()
-result=''
-inside=''
-for (( i=0 ; i<${#string} ; i++ )) ; do
-  char=${string:i:1}
-  if [[ $inside ]] ; then
-    if [[ $char == \\ ]] ; then
-      if [[ $inside=='"' && ${string:i+1:1} == '"' ]] ; then
-        let i++
-        char=$inside
-      fi
-    elif [[ $char == $inside ]] ; then
-      inside=''
-    fi
-  else
-    if [[ $char == ["'"'"'] ]] ; then
-      inside=$char
-    elif [[ $char == '|' ]] ; then
-      char=''
-      commands+=("$(echo "$result" | trim)")
-      result=''
-    fi
-  fi
-  result+=$char
-done
-if [[ $inside ]] ; then
-  >&2 echo Error parsing "$result"
-  exit 1
+if [ "$#" -eq 1 ]; then
+  parse_commands <<< "$1"
+else
+  parse_commands
 fi
-commands+=("$(echo "$result" | trim)")
 
 # prepare a modified command that intercepts the intermediate outputs
 i=0
@@ -109,16 +115,13 @@ eval "$debug_command"
 # annotate the intercepted outputs
 i=0
 for cmd in "${commands[@]}"; do
-  output="$tempdir/$i"
-  echo >> "$output"
-  echo "↑ $cmd" >> "$output"
-  echo >> "$output"
+  { echo; echo "↑ $cmd"; echo; } >> "$tempdir/$i"
   i=$((i+1))
 done
 
 if $PRINT_HEADER; then
   >&2 echo "== Pipespection =="
-  >&2 echo "> $string"
+  >&2 echo "> $(join_by " | " "${commands[@]}")"
 fi
 
 # print the inspected outputs
