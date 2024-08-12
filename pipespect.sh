@@ -3,7 +3,7 @@
 set -e
 
 function usage() {
-  >&2 echo "Usage: $0 [-d|--debug] [-s|--skip number] [-v|--verbose] 'chain | of | piped | commands'"
+  >&2 echo "Usage: $0 [-o|--output file] [-s|--skip number] [-v|--verbose] [-d|--debug] 'chain | of | piped | commands'"
   exit 1
 }
 
@@ -48,22 +48,28 @@ function parse_commands() {
 }
 
 DEBUG=false
+OUTPUT=''
+SKIP=0
 PRINT_OUTPUT=false
 PRINT_HEADER=false
-SKIP=0
 
 POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    -d|--debug)
-      DEBUG=true
-      shift # past argument
-      ;;
     -s|--skip)
       SKIP="$2"
       shift # past argument
       shift # past value
+      ;;
+    -o|--output)
+      OUTPUT="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -d|--debug)
+      DEBUG=true
+      shift # past argument
       ;;
     -v|--verbose)
       PRINT_OUTPUT=true
@@ -119,13 +125,19 @@ for cmd in "${commands[@]}"; do
   i=$((i+1))
 done
 
-if $PRINT_HEADER; then
-  >&2 echo "== Pipespection =="
-  >&2 echo "> $(join_by " | " "${commands[@]}")"
-fi
+(
+  if [[ -n "$OUTPUT" ]]; then
+    exec 2> "$OUTPUT";
+  fi
 
-# print the inspected outputs
-find "$tempdir" -type f | sort -r | head -n "-$((SKIP))" | >&2 xargs cat
+  if $PRINT_HEADER; then
+    >&2 echo "== Pipespection =="
+    >&2 echo "> $(join_by " | " "${commands[@]}")"
+  fi
+
+  # print the inspected outputs
+  find "$tempdir" -type f | sort -r | head -n "-$((SKIP))" | >&2 xargs cat
+)
 
 # cleanup
 if ! $DEBUG; then
