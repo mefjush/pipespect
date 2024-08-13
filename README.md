@@ -2,81 +2,78 @@
 Inspect a chain of piped bash commands. Useful for debugging long chains of piped commands.
 
 # Example usages
-## Debug if chain of pipes correctly converts `foo bar` into `foo-baz`
-Running this:
+## Debug a one-liner chain of pipes
+Before:
 ```
-./pipespect.sh 'echo "foo bar" | sed "s/bar/baz/g" | tr " " "-"'
+echo "foo baz bar" | tr " " "\n" | sort | head -n1
 ```
-Will output:
+After:
 ```
-foo-baz
-
-↑ tr " " "-"
-
-foo baz
-
-↑ sed "s/bar/baz/g"
-
-foo bar
-
-↑ echo "foo bar"
-
+./pipespect.sh 'echo "foo baz bar" | tr " " "\n" | sort | head -n1'
 ```
-
-## Debug a chain of piped commands that check how many times `GPL` is referred to in the `LICENCE` of this project
-Running this:
+Output:
 ```
-./pipespect.sh 'ls | grep "LIC" | xargs grep GPL | wc -l'
-```
-Will output:
-```
-7
+bar
+baz
+foo
 
-↑ wc -l
+↑ sort
 
-  Developers that use the GNU GPL protect your rights with two steps:
-  For the developers' and authors' protection, the GPL clearly explains
-authors' sake, the GPL requires that modified versions be marked as
-have designed this version of the GPL to prohibit the practice for those
-of the GPL, as needed to protect the freedom of users.
-make it effectively proprietary.  To prevent this, the GPL assures that
-For more information on this, and how to apply and follow the GNU GPL, see
+foo
+baz
+bar
 
-↑ xargs grep GPL
+↑ tr " " "\n"
 
-LICENSE
+foo baz bar
 
-↑ grep "LIC"
-
-LICENSE
-pipespect.sh
-README.md
-test
-
-↑ ls
-
+↑ echo "foo baz bar"
 ```
 
-## Debug a chain somewhere in your bash script
-A script like this:
+## Debug a multiline chain of pipes
+Before:
 ```
-counts=$(echo "foo bar 124 ff1 foo foo1 foo bar4 baz" \
+first=$(echo "foo baz bar" \
   | tr ' ' '\n' \
-  | sed 's/bar/baz/g' \
-  | grep -E '^(foo|baz)$' \
   | sort \
-  | uniq -c
+  | head -n1
 )
+echo "First alphabetically: $first"
 ```
-can be easily pipe-spected by changing it to:
+After:
 ```
-counts=$(pipespect --verbose << EOM
-echo "foo bar 124 ff1 foo foo1 foo bar4 baz" \
+sorted=$(pipespect --verbose << EOM
+echo "foo baz bar" \
   | tr ' ' '\n' \
-  | sed 's/bar/baz/g' \
-  | grep -E '^(foo|baz)$' \
   | sort \
-  | uniq -c
+  | head -n1
 EOM
 )
+echo "First alphabetically: $first"
+```
+Output:
+```
+>>>>>>> echo "foo baz bar" | tr ' ' '\n' | sort | head -n1
+bar
+
+↑ head -n1
+
+bar
+baz
+foo
+
+↑ sort
+
+foo
+baz
+bar
+
+↑ tr ' ' '\n'
+
+foo baz bar
+
+↑ echo "foo baz bar"
+
+=======
+First alphabetically: bar
 ```
