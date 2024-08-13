@@ -33,7 +33,8 @@ foo baz bar
 ## Debug a multiline chain of pipes
 Before:
 ```
-first=$(echo "foo baz bar" \
+first=$(
+  echo "foo baz bar" \
   | tr ' ' '\n' \
   | sort \
   | head -n1
@@ -42,8 +43,9 @@ echo "First alphabetically: $first"
 ```
 After:
 ```
-sorted=$(pipespect --verbose << EOM
-echo "foo baz bar" \
+sorted=$(
+pipespect --verbose << EOM
+  echo "foo baz bar" \
   | tr ' ' '\n' \
   | sort \
   | head -n1

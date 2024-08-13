@@ -131,12 +131,15 @@ done
   fi
 
   if $PRINT_HEADER; then
-    >&2 echo "== Pipespection =="
-    >&2 echo "> $(join_by " | " "${commands[@]}")"
+    >&2 echo ">>>>>>> $(join_by " | " "${commands[@]}")"
   fi
 
   # print the inspected outputs
   find "$tempdir" -type f | sort -r | head -n "-$((SKIP))" | >&2 xargs cat
+
+  if $PRINT_HEADER; then
+    >&2 echo "======="
+  fi
 )
 
 # cleanup
