@@ -43,7 +43,7 @@ echo "First alphabetically: $first"
 ```
 After:
 ```
-sorted=$(
+first=$(
 pipespect --verbose << EOM
   echo "foo baz bar" \
   | tr ' ' '\n' \
